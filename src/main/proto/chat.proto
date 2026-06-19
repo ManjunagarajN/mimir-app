@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package mimir.chat.v1;
+
+option java_package = "com.mimir.app.grpc";
+option java_multiple_files = true;
+
+// ===================== SERVICE =====================
+service ChatService {
+      rpc ChatStream (ChatStreamRequest) returns (stream ChatStreamResponse);
+}
+
+// ===================== REQUEST =====================
+message ChatStreamRequest {
+  bool stream = 1;
+  string version = 2;
+  bool incremental_output = 3;
+  string chat_id = 4;
+  string chat_mode = 5;
+  string model = 6;
+  string parent_id = 7;
+  repeated Message messages = 8;
+  int64 timestamp = 9;
+}
+
+// ===================== MESSAGE =====================
+message Message {
+  string fid = 1;
+  string parent_id = 2;
+  repeated string children_ids = 3;
+  string role = 4;
+  string content = 5;
+  string user_action = 6;
+  repeated string files = 7;
+  int64 timestamp = 8;
+  repeated string models = 9;
+  string chat_type = 10;
+  FeatureConfig feature_config = 11;
+  Extra extra = 12;
+  string sub_chat_type = 13;
+}
+
+// ===================== FEATURE CONFIG =====================
+message FeatureConfig {
+  bool thinking_enabled = 1;
+  string output_schema = 2;
+  string research_mode = 3;
+  bool auto_thinking = 4;
+  string thinking_mode = 5;
+  string thinking_format = 6;
+  bool auto_search = 7;
+}
+
+// ===================== EXTRA =====================
+message Extra {
+  Meta meta = 1;
+}
+
+message Meta {
+  string sub_chat_type = 1;
+}
+
+// ===================== RESPONSE =====================
+message ChatStreamResponse {
+  string type = 1;           // token | confidence | done | error
+  string content = 2;
+  double confidence = 3;
+  ConfidenceLevel level = 4;
+  repeated RetrievedChunk chunks = 5;
+}
+
+// ===================== RETRIEVED CHUNK =====================
+message RetrievedChunk {
+  int32 id = 1;
+  string content = 2;
+  float score = 3;
+  repeated float embedding = 4;
+  map<string, string> metadata = 5;
+}
+
+// ===================== ENUM =====================
+enum ConfidenceLevel {
+  CONFIDENCE_LEVEL_UNSPECIFIED = 0;  // ← required zero value
+  HIGH = 1;
+  MEDIUM = 2;
+  LOW = 3;
+}

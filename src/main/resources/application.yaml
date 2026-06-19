@@ -1,0 +1,121 @@
+# ========================
+# Server
+# ========================
+server:
+  port: 8086
+  servlet:
+    context-path: /api/v1/mimir
+  tomcat:
+    max-threads: 200
+    connection-timeout: 300s
+    keep-alive-timeout: 300s
+  threads:
+    virtual:
+      enabled: true
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: never
+    include-exception: false
+
+# ========================
+# gRPC Server (same app)
+# ========================
+spring:
+  grpc:
+    server:
+      port: 9091
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+  # ========================
+  # Application
+  # ========================
+  application:
+    name: mimir-app
+
+  # ========================
+  # Database
+  # ========================
+  datasource:
+    url: jdbc:postgresql://172.16.13.51:5432/GenApi?currentSchema=app
+    username: mimir_user
+    password: Mimir@123
+    driver-class-name: org.postgresql.Driver
+
+    jpa:
+      hibernate:
+        ddl-auto: update   # or validate in prod
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+
+    sql:
+      init:
+        mode: never   # since you're already creating via Docker setup-db
+
+  # ========================
+  # Spring MVC Async (SSE timeout)
+  # ========================
+  mvc:
+    async:
+      request-timeout: 300000
+
+  # ========================
+  # Disable unused Spring AI auto-configs
+  # ========================
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.retry.autoconfigure.SpringAiRetryAutoConfiguration
+      - org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration
+
+  main:
+    allow-bean-definition-overriding: true
+
+# ========================
+# Ollama
+# ========================
+ollama:
+  base-url: http://172.16.13.51:11434
+  model: llama3.2
+  temperature: 0.3
+  max-tokens: 2048
+  timeout-seconds: 120
+  embedding:
+    model: nomic-embed-text-v2-moe
+
+# ========================
+# RAG
+# ========================
+rag:
+  system-prompt: |
+    You are a helpful AI assistant.
+    Answer the question using ONLY the context provided below.
+    If the answer is not present in the context, say "I don't know".
+    Keep responses concise and factual.
+  include-metadata: false
+  embedding-provider: ollama
+
+# ========================
+# Actuator
+# ========================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    logfile:
+      enabled: true
+    loggers:
+      access: read-only
+    health:
+      show-details: always
+
+
+ingestion:
+  chunk-size: 500
+  chunk-overlap: 80
+  max-file-size-mb: 50
