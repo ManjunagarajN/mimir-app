@@ -6,6 +6,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -17,11 +19,11 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import lombok.extern.slf4j.Slf4j;
 
 @Component
-@Slf4j
 public class OllamaGRPCClient implements LlmClient {
+
+    private static final Logger log = LoggerFactory.getLogger(OllamaGRPCClient.class);
 
     @Value("${spring.grpc.server.port:9090}")
     private int grpcPort;

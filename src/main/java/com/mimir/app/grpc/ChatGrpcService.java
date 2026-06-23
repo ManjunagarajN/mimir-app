@@ -2,13 +2,14 @@ package com.mimir.app.grpc;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.grpc.server.service.GrpcService;
 
 import com.mimir.app.llm.OllamaStreamClient;
 
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * gRPC server implementation of ChatService.
@@ -16,8 +17,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @GrpcService
 @RequiredArgsConstructor
-@Slf4j
 public class ChatGrpcService extends ChatServiceGrpc.ChatServiceImplBase {
+    private static final Logger log = LoggerFactory.getLogger(ChatGrpcService.class);
 
     private final OllamaStreamClient ollamaStreamClient;
 

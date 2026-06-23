@@ -14,21 +14,22 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import lombok.extern.slf4j.Slf4j;
-
 /**
  * Low-level HTTP streaming client for Ollama's /api/chat endpoint.
  * Used exclusively by ChatGrpcService (the gRPC server side).
  */
 @Component
-@Slf4j
 public class OllamaStreamClient {
+
+    private static final Logger log = LoggerFactory.getLogger(OllamaStreamClient.class);
 
     @Value("${ollama.base-url}")
     private String baseUrl;

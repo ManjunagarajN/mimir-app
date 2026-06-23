@@ -6,6 +6,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -14,13 +16,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mimir.app.domain.QueryVector;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
-@ConditionalOnProperty(name = "rag.embedding-provider", havingValue = "ollama", matchIfMissing = true)
 public class OllamaEmbeddingService implements EmbeddingService {
+    private static final Logger log = LoggerFactory.getLogger(OllamaEmbeddingService.class);
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final String MODEL = "nomic-embed-text";
     private static final String OLLAMA_URL = "http://172.16.13.51:11434/api/embeddings";

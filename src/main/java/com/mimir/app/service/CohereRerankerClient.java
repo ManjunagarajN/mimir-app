@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,13 +18,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mimir.app.domain.RetrievedChunk;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Service
-@Slf4j
 public class CohereRerankerClient implements RerankerClient {
-
+    private static final Logger log = LoggerFactory.getLogger(CohereRerankerClient.class);
     private static final String API_KEY = "M77GEL5nIPpZSq5jg8uit4Wbl11lgFEmcHMhvMfJ";
     private static final String URL = "https://api.cohere.com/v2/rerank";
 

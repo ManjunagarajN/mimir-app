@@ -20,11 +20,9 @@ import com.mimir.app.response.PromptResult;
 import com.mimir.app.util.ConfidenceLevel;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class QueryOrchestrator {
 
     private final EmbeddingService embeddingService;
