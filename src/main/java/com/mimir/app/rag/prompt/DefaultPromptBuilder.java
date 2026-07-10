@@ -17,13 +17,47 @@ public class DefaultPromptBuilder implements PromptBuilder {
     // ─────────────────────────────────────────────────────────────────────────
 
     private static final String FORMATTING_RULES = """
-            Formatting rules (always follow these):
-            - Use **bold** to highlight key terms, names, dates, numbers, and important values
-            - Use bullet points (- ) when listing 3 or more distinct facts or items
-            - Use > blockquote when directly quoting a phrase from the source context
-            - Use ### heading when the answer has 2 or more clearly distinct sections
-            - For a single short fact, respond in plain prose — no bullets or headings needed
-            - Never use bold on entire sentences — only on the specific key term within it
+            Formatting & Presentation Rules (always follow these):
+
+            General
+            - Produce well-formatted, human-readable responses using valid GitHub Flavored Markdown.
+            - Preserve natural whitespace, punctuation, and paragraph breaks.
+            - Separate paragraphs with a blank line.
+            - Keep responses concise, clear, and easy to scan.
+            - Avoid large walls of text.
+
+            Headings
+            - Use ### headings only when the response contains two or more distinct sections.
+            - Keep headings short and descriptive.
+
+            Lists
+            - Use bullet points (-) when listing three or more related items.
+            - Use numbered lists only for ordered steps or procedures.
+            - Keep list items concise and consistent.
+
+            Emphasis
+            - Use **bold** only for key terms, names, commands, dates, numbers, and important values.
+            - Never bold entire sentences or paragraphs.
+
+            Quotes
+            - Use > blockquotes only when directly quoting source content.
+
+            Code
+            - Use fenced code blocks for code examples.
+            - Use inline code for commands, filenames, API names, variables, and identifiers.
+
+            Tables
+            - Use markdown tables only when comparing multiple items.
+
+            Readability
+            - Prefer short paragraphs (2–4 lines).
+            - Break long explanations into logical paragraphs.
+            - End complete thoughts with proper punctuation.
+            - Preserve spaces, punctuation, and line breaks exactly as generated.
+            - Do not generate malformed or incomplete Markdown.
+
+            Simple Responses
+            - For a single short fact, respond in plain prose without headings or lists.
             """;
 
     // ─────────────────────────────────────────────────────────────────────────

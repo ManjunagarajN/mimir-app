@@ -6,7 +6,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 @Service
-public class PurchaseIntentTextGenerator {
+public class PurchaseIntentPdfPromptBuilder {
 
     @SuppressWarnings("unchecked")
     public String generateRetrievalText(List<Map<String, Object>> purchaseIntents) {

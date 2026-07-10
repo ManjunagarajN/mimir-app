@@ -23,7 +23,9 @@ public class IngestionController {
         this.dataInjectionService = dataInjectionService;
     }
 
-    @PostMapping(consumes = {"multipart/form-data", "application/json", "application/xml", "text/plain"})
+    @PostMapping(
+            value = "/ingest",
+            consumes = {"multipart/form-data", "application/json", "application/xml", "text/plain"})
     public ResponseEntity<String> ingest(
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @RequestPart(value = "inputSourceData", required = false) String inputSourceData) {

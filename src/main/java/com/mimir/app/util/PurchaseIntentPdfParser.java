@@ -193,7 +193,7 @@ public class PurchaseIntentPdfParser {
                 page.replaceAll("\\r?\\n", " ").replaceAll("\\s+", " ").trim();
 
         Pattern pattern = Pattern.compile(
-                "(\\d{1,3},\\d{3})\\s+" + // PI NO
+                "(\\d+)\\s+" + // PI NO
                         "(\\S+)\\s+"
                         + // STYLE
                         "(\\S+)\\s+"

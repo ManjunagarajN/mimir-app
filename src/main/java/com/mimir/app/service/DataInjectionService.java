@@ -2,8 +2,8 @@ package com.mimir.app.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import org.apache.tika.Tika;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,9 +15,9 @@ import com.mimir.app.domain.Chunk;
 import com.mimir.app.domain.QueryVector;
 import com.mimir.app.rag.embedding.EmbeddingService;
 import com.mimir.app.rag.ingestion.DataInjectionRepository;
-import com.mimir.app.util.PurchaseIntentDetector;
-import com.mimir.app.util.PurchaseIntentPdfParser;
-import com.mimir.app.util.PurchaseIntentTextGenerator;
+import com.mimir.app.util.*;
+import com.mimir.app.util.parser.DocumentParser;
+import com.mimir.app.util.parser.DocumentParserFactory;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,12 +26,9 @@ import lombok.RequiredArgsConstructor;
 public class DataInjectionService {
     private static final Logger log = LoggerFactory.getLogger(DataInjectionService.class);
 
-    private final Tika tika;
     private final DataInjectionRepository dataInjectionRepository;
     private final EmbeddingService embeddingService;
-    private final PurchaseIntentPdfParser purchaseIntentPdfParser;
-    private final PurchaseIntentTextGenerator retrievalTextGenerator;
-    private final PurchaseIntentDetector purchaseIntentDetector;
+    private final DocumentParserFactory documentParserFactory;
 
     private static final List<String> SUPPORTED_FILE_EXTS =
             List.of("pdf", "txt", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "html", "xml", "json", "csv", "md");
@@ -45,10 +42,6 @@ public class DataInjectionService {
     private static final int MIN_TOKENS_PER_CHUNK = 20;
     private static final double TOKENS_PER_WORD = 4.0 / 3.0;
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Public entry point
-    // ─────────────────────────────────────────────────────────────────────
-
     public void ingest(List<MultipartFile> files, String inputSourceData) {
         if (files != null && !files.isEmpty()) {
             ingestFiles(files);
@@ -59,14 +52,11 @@ public class DataInjectionService {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // Ingestion paths
-    // ─────────────────────────────────────────────────────────────────────
-
     private void ingestFiles(List<MultipartFile> files) {
         log.info("Processing {} file(s)", files.size());
 
         int savedFiles = 0;
+
         for (MultipartFile file : files) {
             String filename = file.getOriginalFilename();
             try {
@@ -76,28 +66,31 @@ public class DataInjectionService {
                 }
 
                 String ext = extOf(filename);
-                String content;
 
-                String tikaText = tika.parseToString(file.getInputStream()).trim();
+                Optional<DocumentParser> parserOpt = documentParserFactory.getParser(ext);
 
-                if (purchaseIntentDetector.isPurchaseIntent(tikaText)) {
+                if (parserOpt.isEmpty()) {
+                    log.warn("No parser found for extension: {} | file={}", ext, filename);
+                    continue;
+                }
 
-                    log.info("Purchase Intent detected: {}", filename);
+                DocumentParser parser = parserOpt.get();
 
-                    List<Map<String, Object>> json =
-                            purchaseIntentPdfParser.extractPurchaseIntentData(file.getInputStream(), filename);
+                // Read bytes once — parsers can open multiple streams from it
+                byte[] fileBytes = file.getBytes();
 
-                    content = retrievalTextGenerator.generateRetrievalText(json);
+                List<Map<String, Object>> records = parser.parse(fileBytes, filename);
 
-                    if (content == null || content.isBlank()) {
-                        content = tikaText;
-                    }
+                if (records == null || records.isEmpty()) {
+                    log.warn("Parser returned no records for: {}", filename);
+                    continue;
+                }
 
-                } else {
+                String content = parser.generateRetrievalText(records);
 
-                    log.info("Plain PDF detected: {}", filename);
-
-                    content = tikaText;
+                if (content == null || content.isBlank()) {
+                    log.warn("Empty retrieval text for: {}", filename);
+                    continue;
                 }
 
                 content = cleanContent(content);
@@ -106,10 +99,7 @@ public class DataInjectionService {
 
                 if (content.length() != originalLength) {
                     log.warn(
-                            "Deduplicated content for {} | {} chars -> {} chars",
-                            filename,
-                            originalLength,
-                            content.length());
+                            "Deduplicated content for {} | {} -> {} chars", filename, originalLength, content.length());
                 }
 
                 if (content.length() < MIN_CONTENT_LENGTH) {
@@ -188,7 +178,7 @@ public class DataInjectionService {
             totalTokens += chunkTokens;
 
             if (chunkTokens < MIN_TOKENS_PER_CHUNK) {
-                log.trace(
+                log.info(
                         "Skipping short chunk {}/{} | source={} estimatedTokens={} (min={})",
                         i + 1,
                         totalChunks,
@@ -211,7 +201,7 @@ public class DataInjectionService {
                 continue;
             }
 
-            log.trace(
+            log.info(
                     "Processing chunk {}/{} | source={} words={} estimatedTokens={}",
                     i + 1,
                     totalChunks,

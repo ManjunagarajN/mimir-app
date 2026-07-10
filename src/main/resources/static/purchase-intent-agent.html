@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Intent Agent</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh; display: flex; flex-direction: column;
+        }
+
+        .app-header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .app-header h1 { color: white; font-size: 24px; display: flex; align-items: center; gap: 10px; }
+
+        .user-menu { position: relative; display: none; }
+        .user-icon {
+            color: white; cursor: pointer; display: flex; align-items: center; gap: 8px;
+            padding: 8px 15px; border-radius: 20px; transition: background 0.3s;
+            font-size: 14px; font-weight: 500;
+        }
+        .user-icon:hover { background: rgba(255, 255, 255, 0.2); }
+
+        .tooltip {
+            position: absolute; top: 45px; right: 0; background: #333; color: white;
+            padding: 8px 12px; border-radius: 6px; font-size: 12px; white-space: nowrap;
+            opacity: 0; visibility: hidden; transition: all 0.3s; pointer-events: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .user-icon:hover + .tooltip { opacity: 1; visibility: visible; top: 50px; }
+
+        .dropdown-menu {
+            position: absolute; top: 55px; right: 0; background: white; border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); padding: 10px; display: none; z-index: 100;
+            min-width: 150px;
+        }
+        .dropdown-menu.active { display: block; }
+        .dropdown-menu button {
+            width: 100%; padding: 10px; border: none; background: #dc3545; color: white;
+            border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.3s;
+        }
+        .dropdown-menu button:hover { background: #c82333; }
+
+        .main-content { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+
+        .container {
+            background: white; border-radius: 20px; padding: 40px; max-width: 750px; width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-screen h2 { color: #333; margin-bottom: 10px; text-align: center; }
+        .login-screen .subtitle { color: #666; margin-bottom: 30px; text-align: center; font-size: 14px; }
+        .login-form { display: flex; flex-direction: column; gap: 15px; }
+        .login-form input {
+            padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 15px;
+        }
+        .login-form input:focus { outline: none; border-color: #2a5298; }
+
+        .app-screen { display: none; }
+        .app-screen h2 { color: #333; margin-bottom: 5px; }
+        .app-screen .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; }
+
+        .pi-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+        }
+        .form-group.full-width { grid-column: 1 / -1; }
+        .form-group label {
+            font-size: 14px; font-weight: 600; color: #333;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .form-group label .required { color: #dc3545; }
+        .form-group input, .form-group select {
+            padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 15px; transition: border-color 0.3s; background: white;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #2a5298; }
+        .form-group input.error, .form-group select.error { border-color: #dc3545; }
+        .error-message { font-size: 12px; color: #dc3545; display: none; }
+
+        .multi-select { position: relative; }
+        .multi-select-trigger {
+            padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px;
+            font-size: 15px; background: white; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            min-height: 48px; transition: border-color 0.3s;
+        }
+        .multi-select-trigger:hover { border-color: #2a5298; }
+        .multi-select-trigger.open { border-color: #2a5298; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+        .multi-select-trigger.error { border-color: #dc3545; }
+        .multi-select-trigger .placeholder { color: #999; }
+        .multi-select-trigger .arrow { transition: transform 0.3s; font-size: 12px; color: #666; }
+        .multi-select-trigger.open .arrow { transform: rotate(180deg); }
+        .multi-select-trigger .selected-count {
+            background: #2a5298; color: white; padding: 2px 8px;
+            border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 8px;
+        }
+        .multi-select-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; background: white;
+            border: 2px solid #2a5298; border-top: none;
+            border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;
+            max-height: 250px; overflow-y: auto; z-index: 50; display: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .multi-select-dropdown.open { display: block; }
+        .multi-select-search {
+            padding: 10px; border-bottom: 1px solid #e0e0e0;
+            position: sticky; top: 0; background: white; z-index: 1;
+        }
+        .multi-select-search input {
+            width: 100%; padding: 8px 12px; border: 1px solid #e0e0e0;
+            border-radius: 6px; font-size: 13px;
+        }
+        .multi-select-search input:focus { outline: none; border-color: #2a5298; }
+        .multi-select-option {
+            padding: 10px 16px; cursor: pointer; display: flex;
+            align-items: center; gap: 10px; transition: background 0.2s; font-size: 14px;
+        }
+        .multi-select-option:hover { background: #f5f7fa; }
+        .multi-select-option.selected { background: #e3f2fd; font-weight: 500; }
+        .multi-select-option input[type="checkbox"] {
+            width: 16px; height: 16px; cursor: pointer; accent-color: #2a5298;
+        }
+        .multi-select-option label { cursor: pointer; flex: 1; margin: 0; font-weight: normal; }
+        .multi-select-actions {
+            padding: 8px 16px; border-top: 1px solid #e0e0e0;
+            display: flex; justify-content: space-between; background: #f8f9fa;
+            border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;
+        }
+        .multi-select-actions button {
+            padding: 4px 12px; border: none; background: transparent;
+            color: #2a5298; cursor: pointer; font-size: 12px; font-weight: 600;
+            border-radius: 4px; transition: background 0.2s;
+        }
+        .multi-select-actions button:hover { background: #e3f2fd; }
+
+        .btn {
+            padding: 12px 24px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s; white-space: nowrap;
+        }
+        .btn-primary { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(42, 82, 152, 0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 10px; flex-wrap: wrap; }
+
+        .status {
+            margin: 15px 0; padding: 12px 16px; border-radius: 10px; background: #f8f9fa; color: #333;
+            font-size: 14px; display: flex; align-items: center; gap: 10px; min-height: 50px;
+        }
+        .status.loading { background: #e3f2fd; color: #1976d2; }
+        .status.success { background: #e8f5e9; color: #2e7d32; }
+        .status.error { background: #ffebee; color: #c62828; }
+        .status.warning { background: #fff3cd; color: #856404; }
+
+        .spinner {
+            display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%; border-top-color: #2a5298; animation: spin 0.8s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .step-progress {
+            display: flex; gap: 8px; margin: 10px 0; padding: 10px 15px; background: #f8f9fa;
+            border-radius: 10px; font-size: 13px; color: #888; align-items: center; flex-wrap: wrap;
+        }
+        .step-progress .step { display: flex; align-items: center; gap: 5px; opacity: 0.4; transition: all 0.3s; }
+        .step-progress .step.active { opacity: 1; color: #1976d2; font-weight: 600; }
+        .step-progress .step.completed { opacity: 1; color: #2e7d32; }
+        .step-progress .step .spinner-small {
+            display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%; border-top-color: #1976d2; animation: spin 0.6s ease-in-out infinite;
+        }
+        .step-progress .separator { color: #ddd; font-size: 16px; }
+        .timer { font-size: 12px; color: #888; margin-left: auto; font-variant-numeric: tabular-nums; }
+
+        .live-output {
+            margin-top: 20px; background: #1e1e1e; color: #d4d4d4; border-radius: 10px; overflow: hidden;
+            display: none; font-family: 'Courier New', Courier, monospace; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .live-output.visible { display: block; animation: fadeIn 0.5s ease-in; }
+        .live-output-header {
+            background: #333; padding: 10px 15px; font-size: 14px; font-weight: 600; color: #fff;
+            border-bottom: 1px solid #444;
+        }
+        .live-output-text {
+            padding: 15px; font-size: 13px; line-height: 1.6; max-height: 300px; overflow-y: auto;
+            white-space: pre-wrap; word-break: break-word;
+        }
+
+        .result-card {
+            margin-top: 25px; padding: 25px; border-radius: 15px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); display: none;
+        }
+        .result-card.visible { display: block; animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .result-card h2 { color: #2e7d32; margin-bottom: 20px; font-size: 22px; }
+        .result-section { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.1); }
+        .result-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .result-section h3 { font-size: 16px; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+        .pi-number {
+            font-size: 32px; font-weight: 700; color: #1976d2; background: white; padding: 15px;
+            border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .answer-text {
+            background: white; padding: 15px; border-radius: 10px; color: #333; font-size: 14px;
+            line-height: 1.6; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .ingestion-status {
+            padding: 15px; border-radius: 10px; font-size: 14px; font-weight: 500;
+        }
+        .ingestion-status.success { background: #d4edda; color: #155724; }
+        .ingestion-status.error { background: #fff3cd; color: #856404; }
+
+        /* PO Color Selection Styles */
+        .po-color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .po-color-option {
+            background: white;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .po-color-option:hover {
+            border-color: #2a5298;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(42, 82, 152, 0.2);
+        }
+        .po-color-option.selected {
+            border-color: #28a745;
+            background: #d4edda;
+            color: #155724;
+        }
+        .po-color-option.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 20px;
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        @media (max-width: 600px) {
+            .container { padding: 20px; }
+            .pi-form { grid-template-columns: 1fr; }
+            .form-group.full-width { grid-column: 1; }
+            .btn-group { flex-direction: column; }
+            .step-progress { font-size: 11px; gap: 4px; }
+            .step-progress .separator { display: none; }
+            .pi-number { font-size: 24px; }
+            .po-color-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+    <h1>🛒 Purchase Intent Agent</h1>
+    <div class="user-menu" id="userMenu">
+        <div class="user-icon" id="userIcon" onclick="toggleDropdown()">
+            👤 <span id="userEmailDisplay">User</span> ▼
+        </div>
+        <div class="tooltip" id="emailTooltip">Email: user@example.com</div>
+        <div class="dropdown-menu" id="dropdownMenu">
+            <button onclick="logout()">🚪 Logout</button>
+        </div>
+    </div>
+</header>
+
+<div class="main-content">
+    <div class="container">
+
+        <!-- LOGIN SCREEN -->
+        <div id="loginScreen" class="login-screen">
+            <h2>🔐 Welcome</h2>
+            <p class="subtitle">Please login to access the Purchase Intent Agent</p>
+            <div class="login-form">
+                <input type="email" id="loginEmail" placeholder="Email" value="manjunath.n@landmarkgroup.in">
+                <input type="password" id="loginPassword" placeholder="Password" value="Manju@98">
+                <button class="btn btn-primary" id="loginBtn" onclick="login()" style="width: 100%;">Login</button>
+                <div id="loginStatus" class="status error" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- APP SCREEN -->
+        <div id="appScreen" class="app-screen">
+            <h2>Create Purchase Intent</h2>
+            <p class="subtitle">Fill in the details below to create a new Purchase Intent.</p>
+
+            <form id="piForm" onsubmit="return false;">
+                <div class="pi-form">
+                    <div class="form-group">
+                        <label>Division <span class="required">*</span></label>
+                        <select id="division" required>
+                            <option value="">Select Division</option>
+                            <option value="Max-Women Wear">Women's Wear</option>
+                            <option value="Max-Innerwear">Innerwear</option>
+                        </select>
+                        <span class="error-message">Please select a division</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Department <span class="required">*</span></label>
+                        <div class="multi-select" id="departmentSelect" data-field="department">
+                            <div class="multi-select-trigger" onclick="toggleMultiSelect('departmentSelect')">
+                                <span class="placeholder">Select departments...</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="multi-select-dropdown">
+                                <div class="multi-select-search">
+                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('departmentSelect', this.value)">
+                                </div>
+                                <div class="multi-select-options"></div>
+                                <div class="multi-select-actions">
+                                    <button type="button" onclick="selectAll('departmentSelect')">Select All</button>
+                                    <button type="button" onclick="clearAll('departmentSelect')">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="error-message">Please select at least one department</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Group <span class="required">*</span></label>
+                        <div class="multi-select" id="groupSelect" data-field="group">
+                            <div class="multi-select-trigger" onclick="toggleMultiSelect('groupSelect')">
+                                <span class="placeholder">Select groups...</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="multi-select-dropdown">
+                                <div class="multi-select-search">
+                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('groupSelect', this.value)">
+                                </div>
+                                <div class="multi-select-options"></div>
+                                <div class="multi-select-actions">
+                                    <button type="button" onclick="selectAll('groupSelect')">Select All</button>
+                                    <button type="button" onclick="clearAll('groupSelect')">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="error-message">Please select at least one group</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Style <span class="required">*</span></label>
+                        <input type="text" id="style" placeholder="e.g., ELA4D" required>
+                        <span class="error-message">Please enter a style</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Size Range</label>
+                        <div class="multi-select" id="sizeRangeSelect" data-field="sizeRange">
+                            <div class="multi-select-trigger" onclick="toggleMultiSelect('sizeRangeSelect')">
+                                <span class="placeholder">Select size ranges...</span>
+                                <span class="arrow">▼</span>
+                            </div>
+                            <div class="multi-select-dropdown">
+                                <div class="multi-select-search">
+                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('sizeRangeSelect', this.value)">
+                                </div>
+                                <div class="multi-select-options"></div>
+                                <div class="multi-select-actions">
+                                    <button type="button" onclick="selectAll('sizeRangeSelect')">Select All</button>
+                                    <button type="button" onclick="clearAll('sizeRangeSelect')">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Hit (Season)</label>
+                        <input type="text" id="hit" placeholder="e.g., S-8 (optional)">
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" id="createBtn" onclick="startWorkflow()">
+                        🚀 Create PI
+                    </button>
+                    <button type="button" class="btn btn-danger" id="stopBtn" onclick="stopRequest()" style="display:none;">
+                        ⏹ Stop
+                    </button>
+                </div>
+            </form>
+
+            <div id="stepProgress" class="step-progress" style="display:none;">
+                <span class="step" id="stepPlan">📋 Plan</span>
+                <span class="separator">→</span>
+                <span class="step" id="stepSearch">🔍 Search</span>
+                <span class="separator">→</span>
+                <span class="step" id="stepBuild">🔨 Build</span>
+                <span class="separator">→</span>
+                <span class="step" id="stepCreate">📦 Create</span>
+                <span class="separator">→</span>
+                <span class="step" id="stepPdf">📄 File</span>
+                <span class="timer" id="timer">0s</span>
+            </div>
+
+            <div id="status" class="status">
+                <span>💡 Fill in the form above and click "Create PI".</span>
+            </div>
+
+            <div id="liveOutput" class="live-output">
+                <div class="live-output-header">🤖 Agent Live Stream</div>
+                <div id="liveOutputText" class="live-output-text"></div>
+            </div>
+
+            <!-- PO Color Selection Card -->
+            <div id="poColorCard" class="result-card">
+                <h2>🎨 Select PO Color(s)</h2>
+                <p class="subtitle">Multiple styles found with different PO colors. Please select one or more to proceed:</p>
+                <div id="poColorGrid" class="po-color-grid"></div>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="selectAllColors()">🎨 All Colors</button>
+                    <button class="btn btn-primary" onclick="proceedWithPoColor()">Continue with Selected</button>
+                    <button class="btn btn-danger" onclick="cancelPoColorSelection()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Result Card -->
+            <div id="resultCard" class="result-card">
+                <h2>✅ Workflow Completed</h2>
+                <div class="result-section">
+                    <h3>📦 Created PI Number(s)</h3>
+                    <div id="piNumber" class="pi-number">-</div>
+                </div>
+                <div class="result-section" id="ingestionSection" style="display:none;">
+                    <h3>📤 Ingestion Status</h3>
+                    <div id="ingestionStatus" class="answer-text"></div>
+                </div>
+                <div class="result-section">
+                    <h3>💬 Agent Summary</h3>
+                    <div id="agentAnswer" class="answer-text"></div>
+                </div>
+                <div class="result-section" id="pdfSection" style="display:none;">
+                    <h3>📄 Report File</h3>
+                    <button class="btn btn-primary" id="pdfBtn" onclick="downloadPdf(event)">⬇️ Download File</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:8081/api/v1/vortx';
+    const INTERNAL_API_BASE_URL = 'http://localhost:8080/api/v1/mimir';
+
+    const MULTI_SELECT_OPTIONS = {
+        departmentSelect: [
+            "WW SPORTY", "WW PLUS", "WW ESSENTIALS", "WW LINGERIE", "WW NIGHTWEAR",
+            "WW CORE", "IW FUSION", "WW TIMELESS", "WW CASUALS", "WW DENIM",
+            "WW MATERNITY", "WW URBAN", "WW SLEEPWEAR"
+        ],
+        groupSelect: [
+            "COLLECTION", "BASIC", "CATEGORY", "FASHION BASIC", "NOOS", "OB"
+        ],
+        sizeRangeSelect: [
+            "26-34", "26-36", "28-38", "2 - 8 YEARS", "30A-40DD",
+            "S-XL", "S-XXL", "XS/S - M/L - XL/XXL", "XS-XL", "XS-XXL"
+        ]
+    };
+
+    const multiSelectState = {
+        departmentSelect: [],
+        groupSelect: [],
+        sizeRangeSelect: []
+    };
+
+    let abortController = null;
+    let isRequestInProgress = false;
+    let startTime = 0;
+    let timerInterval = null;
+    let currentPiNumbers = [];
+    let currentPdfBase64 = null;
+    let currentFileType = 'zip';
+
+    // PO Color state
+    let selectedPoColors = [];
+    let availablePoColors = [];
+
+    window.addEventListener('load', () => {
+        const storedToken = localStorage.getItem('accessToken');
+        const storedEmail = localStorage.getItem('email');
+
+        if (storedToken && storedEmail) {
+            showAppScreen(storedEmail);
+        }
+
+        Object.keys(MULTI_SELECT_OPTIONS).forEach(selectId => {
+            renderMultiSelectOptions(selectId);
+        });
+    });
+
+    function renderMultiSelectOptions(selectId, filter = '') {
+        const container = document.querySelector(`#${selectId} .multi-select-options`);
+        const options = MULTI_SELECT_OPTIONS[selectId];
+        const selected = multiSelectState[selectId];
+
+        container.innerHTML = '';
+
+        options.forEach(option => {
+            if (filter && !option.toLowerCase().includes(filter.toLowerCase())) {
+                return;
+            }
+
+            const isSelected = selected.includes(option);
+            const optionEl = document.createElement('div');
+            optionEl.className = `multi-select-option ${isSelected ? 'selected' : ''}`;
+            optionEl.innerHTML = `
+                <input type="checkbox" id="${selectId}_${option}" ${isSelected ? 'checked' : ''}>
+                <label for="${selectId}_${option}">${option}</label>
+            `;
+
+            optionEl.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') {
+                    const checkbox = optionEl.querySelector('input[type="checkbox"]');
+                    checkbox.checked = !checkbox.checked;
+                }
+                toggleOption(selectId, option);
+            });
+
+            container.appendChild(optionEl);
+        });
+
+        updateTriggerDisplay(selectId);
+    }
+
+    function toggleOption(selectId, option) {
+        const selected = multiSelectState[selectId];
+        const index = selected.indexOf(option);
+
+        if (index > -1) {
+            selected.splice(index, 1);
+        } else {
+            selected.push(option);
+        }
+
+        renderMultiSelectOptions(selectId, document.querySelector(`#${selectId} .multi-select-search input`)?.value || '');
+    }
+
+    function updateTriggerDisplay(selectId) {
+        const trigger = document.querySelector(`#${selectId} .multi-select-trigger`);
+        const selected = multiSelectState[selectId];
+        const placeholder = trigger.querySelector('.placeholder');
+
+        if (selected.length === 0) {
+            placeholder.textContent = trigger.dataset.placeholder || 'Select...';
+            placeholder.style.display = 'inline';
+            const count = trigger.querySelector('.selected-count');
+            if (count) count.remove();
+        } else {
+            placeholder.style.display = 'none';
+            let countEl = trigger.querySelector('.selected-count');
+            if (!countEl) {
+                countEl = document.createElement('span');
+                countEl.className = 'selected-count';
+                trigger.insertBefore(countEl, trigger.querySelector('.arrow'));
+            }
+            countEl.textContent = `${selected.length} selected`;
+        }
+    }
+
+    function toggleMultiSelect(selectId) {
+        const trigger = document.querySelector(`#${selectId} .multi-select-trigger`);
+        const dropdown = document.querySelector(`#${selectId} .multi-select-dropdown`);
+
+        document.querySelectorAll('.multi-select-trigger.open').forEach(el => {
+            if (el !== trigger) {
+                el.classList.remove('open');
+                el.closest('.multi-select').querySelector('.multi-select-dropdown').classList.remove('open');
+            }
+        });
+
+        trigger.classList.toggle('open');
+        dropdown.classList.toggle('open');
+
+        if (dropdown.classList.contains('open')) {
+            const searchInput = dropdown.querySelector('.multi-select-search input');
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+        }
+    }
+
+    function filterOptions(selectId, filter) {
+        renderMultiSelectOptions(selectId, filter);
+    }
+
+    function selectAll(selectId) {
+        multiSelectState[selectId] = [...MULTI_SELECT_OPTIONS[selectId]];
+        renderMultiSelectOptions(selectId, document.querySelector(`#${selectId} .multi-select-search input`)?.value || '');
+    }
+
+    function clearAll(selectId) {
+        multiSelectState[selectId] = [];
+        renderMultiSelectOptions(selectId, document.querySelector(`#${selectId} .multi-select-search input`)?.value || '');
+    }
+
+    document.addEventListener('click', (event) => {
+        const userMenu = document.getElementById('userMenu');
+        const dropdown = document.getElementById('dropdownMenu');
+        if (userMenu && !userMenu.contains(event.target)) {
+            dropdown.classList.remove('active');
+        }
+
+        if (!event.target.closest('.multi-select')) {
+            document.querySelectorAll('.multi-select-trigger.open').forEach(trigger => {
+                trigger.classList.remove('open');
+                trigger.closest('.multi-select').querySelector('.multi-select-dropdown').classList.remove('open');
+            });
+        }
+    });
+
+    function toggleDropdown() {
+        document.getElementById('dropdownMenu').classList.toggle('active');
+    }
+
+    async function login() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        const loginBtn = document.getElementById('loginBtn');
+        const loginStatus = document.getElementById('loginStatus');
+
+        if (!email || !password) {
+            loginStatus.style.display = 'flex';
+            loginStatus.className = 'status error';
+            loginStatus.innerHTML = '❌ Please enter email and password';
+            return;
+        }
+
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logging in...';
+        loginStatus.style.display = 'none';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (!response.ok) throw new Error(`Login failed: ${response.status}`);
+
+            const result = await response.json();
+
+            if (result.httpStatus === "OK" && result.data && result.data.accessToken) {
+                localStorage.setItem('accessToken', result.data.accessToken);
+                localStorage.setItem('email', email);
+                showAppScreen(email);
+            } else {
+                throw new Error('Invalid login response');
+            }
+        } catch (error) {
+            console.error('❌ Login error:', error);
+            loginStatus.style.display = 'flex';
+            loginStatus.className = 'status error';
+            loginStatus.innerHTML = `❌ ${error.message}`;
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.textContent = 'Login';
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('email');
+        document.getElementById('userMenu').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'none';
+        document.getElementById('loginScreen').style.display = 'block';
+        document.getElementById('dropdownMenu').classList.remove('active');
+    }
+
+    function showAppScreen(email) {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'block';
+        document.getElementById('userMenu').style.display = 'block';
+
+        document.getElementById('userEmailDisplay').textContent = email;
+        document.getElementById('emailTooltip').textContent = `Email: ${email}`;
+    }
+
+    function validateForm() {
+        const division = document.getElementById('division').value.trim();
+        const departments = multiSelectState.departmentSelect;
+        const groups = multiSelectState.groupSelect;
+        const style = document.getElementById('style').value.trim();
+
+        let isValid = true;
+
+        document.querySelectorAll('.form-group input, .form-group select, .multi-select-trigger').forEach(el => {
+            el.classList.remove('error');
+        });
+
+        if (!division) {
+            document.getElementById('division').classList.add('error');
+            isValid = false;
+        }
+        if (departments.length === 0) {
+            document.querySelector('#departmentSelect .multi-select-trigger').classList.add('error');
+            isValid = false;
+        }
+        if (groups.length === 0) {
+            document.querySelector('#groupSelect .multi-select-trigger').classList.add('error');
+            isValid = false;
+        }
+        if (!style) {
+            document.getElementById('style').classList.add('error');
+            isValid = false;
+        }
+
+        return isValid;
+    }
+
+    function buildQueryFromForm() {
+        const division = document.getElementById('division').value.trim();
+        const departments = multiSelectState.departmentSelect;
+        const groups = multiSelectState.groupSelect;
+        const style = document.getElementById('style').value.trim().toUpperCase();
+        const sizeRanges = multiSelectState.sizeRangeSelect;
+        const hit = document.getElementById('hit').value.trim().toUpperCase();
+
+        let query = `Create a PI for division ${division}`;
+
+        if (departments.length > 0) {
+            query += ` department ${departments.join(', ')}`;
+        }
+
+        if (groups.length > 0) {
+            query += ` group ${groups.join(', ')}`;
+        }
+
+        query += ` style ${style}`;
+
+        if (sizeRanges.length > 0) {
+            query += ` size ${sizeRanges.join(', ')}`;
+        }
+
+        if (hit) {
+            query += ` hit ${hit}`;
+        }
+
+        return query;
+    }
+
+    async function startWorkflow() {
+        if (!validateForm()) {
+            setStatus('error', '⚠️ Please fill in all required fields');
+            return;
+        }
+
+        const accessToken = localStorage.getItem('accessToken');
+        const email = localStorage.getItem('email');
+        const query = buildQueryFromForm();
+
+        selectedPoColors = [];
+        document.getElementById('poColorCard').style.display = 'none';
+        document.getElementById('resultCard').classList.remove('visible');
+        document.getElementById('liveOutput').classList.add('visible');
+        document.getElementById('liveOutputText').textContent = '';
+        document.getElementById('stepProgress').style.display = 'flex';
+        resetSteps();
+
+        isRequestInProgress = true;
+        showLoadingState();
+        setStatus('loading', `<span class="spinner"></span> Starting workflow...`);
+
+        abortController = new AbortController();
+        startTime = Date.now();
+        startTimer();
+
+        const requestBody = { email, accessToken, query };
+        const url = `${INTERNAL_API_BASE_URL}/workflow/stream`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullStreamText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                let currentEvent = '';
+                let currentData = [];
+
+                for (const line of lines) {
+                    if (line.startsWith('event:')) currentEvent = line.substring(6).trim();
+                    else if (line.startsWith('data:')) currentData.push(line.substring(5).trim());
+                    else if (line.trim() === '') {
+                        if (currentData.length > 0) {
+                            const data = currentData.join('\n');
+                            handleSseEvent(currentEvent, data, (text) => {
+                                fullStreamText += text;
+                                document.getElementById('liveOutputText').textContent = fullStreamText;
+                                updateStepsFromText(fullStreamText);
+                            });
+                            currentEvent = '';
+                            currentData = [];
+                        }
+                    }
+                }
+            }
+
+            stopTimer();
+
+        } catch (error) {
+            stopTimer();
+            if (error.name === 'AbortError') setStatus('error', '⏹️ Request cancelled');
+            else {
+                console.error('❌ Error:', error);
+                setStatus('error', `❌ Error: ${error.message}`);
+            }
+        } finally {
+            isRequestInProgress = false;
+            hideLoadingState();
+            abortController = null;
+        }
+    }
+
+    function handleSseEvent(eventType, data, onMessage) {
+        if (!eventType) eventType = 'message';
+        if (eventType === 'message') onMessage(data);
+        else if (eventType === 'result') {
+            try {
+                const result = JSON.parse(data);
+                displayResult(result);
+            } catch (e) {
+                console.error('Failed to parse result JSON', e);
+            }
+        }
+    }
+
+    function showLoadingState() {
+        document.getElementById('createBtn').disabled = true;
+        document.getElementById('createBtn').textContent = 'Processing...';
+        document.getElementById('stopBtn').style.display = 'inline-block';
+    }
+
+    function hideLoadingState() {
+        document.getElementById('createBtn').disabled = false;
+        document.getElementById('createBtn').textContent = '🚀 Create PI';
+        document.getElementById('stopBtn').style.display = 'none';
+    }
+
+    function resetSteps() {
+        const steps = ['stepPlan', 'stepSearch', 'stepBuild', 'stepCreate', 'stepPdf'];
+        const icons = { stepPlan: '📋', stepSearch: '🔍', stepBuild: '🔨', stepCreate: '📦', stepPdf: '📄' };
+        const names = { stepPlan: 'Plan', stepSearch: 'Search', stepBuild: 'Build', stepCreate: 'Create', stepPdf: 'File' };
+        steps.forEach(id => {
+            const el = document.getElementById(id);
+            el.className = 'step';
+            el.innerHTML = `${icons[id]} ${names[id]}`;
+        });
+    }
+
+    function setStep(id, state) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const names = { stepPlan: 'Plan', stepSearch: 'Search', stepBuild: 'Build', stepCreate: 'Create', stepPdf: 'File' };
+        el.className = `step ${state}`;
+        if (state === 'completed') el.innerHTML = `✅ ${names[id]}`;
+        else if (state === 'active') el.innerHTML = `<span class="spinner-small"></span> ${names[id]}`;
+    }
+
+    function updateStepsFromText(text) {
+        if (text.includes('PLANNING:')) setStep('stepPlan', 'active');
+        if (text.includes('Query analysis complete')) setStep('stepPlan', 'completed');
+
+        if (text.includes('Searching')) setStep('stepSearch', 'active');
+        if (text.includes('Found') && text.includes('results')) setStep('stepSearch', 'completed');
+
+        if (text.includes('Building request')) setStep('stepBuild', 'active');
+        if (text.includes('Built') && text.includes('requests')) setStep('stepBuild', 'completed');
+
+        if (text.includes('Creating')) setStep('stepCreate', 'active');
+        if (text.includes('PI created')) setStep('stepCreate', 'completed');
+
+        if (text.includes('Downloading')) setStep('stepPdf', 'active');
+        if (text.includes('Ingestion successful')) setStep('stepPdf', 'completed');
+    }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            document.getElementById('timer').textContent = getElapsedTime() + 's';
+        }, 1000);
+    }
+
+    function stopTimer() { clearInterval(timerInterval); }
+    function getElapsedTime() { return Math.floor((Date.now() - startTime) / 1000); }
+
+    function setStatus(type, message) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.className = `status ${type}`;
+        statusDiv.innerHTML = message;
+    }
+
+    function stopRequest() {
+        if (abortController) abortController.abort();
+        isRequestInProgress = false;
+        hideLoadingState();
+        stopTimer();
+        setStatus('error', '⏹️ Request cancelled');
+    }
+
+    function displayResult(result) {
+        if (result.requiresPoColorSelection) {
+            showPoColorSelection(result.availablePoColors, result.searchCriteria);
+            return;
+        }
+
+        const card = document.getElementById('resultCard');
+        if (result.success) {
+            const piNumbers = result.createdPiNumbers || [];
+            document.getElementById('piNumber').textContent = piNumbers.length > 0 ? piNumbers.join(', ') : 'N/A';
+            document.getElementById('agentAnswer').textContent = result.answer || 'No summary provided.';
+
+            if (result.ingestionResult) {
+                document.getElementById('ingestionSection').style.display = 'block';
+                const ingestionDiv = document.getElementById('ingestionStatus');
+                if (result.ingestionResult.success) {
+                    ingestionDiv.innerHTML = '✅ <strong>Success!</strong> PDF files have been ingested successfully.';
+                    ingestionDiv.className = 'ingestion-status success';
+                } else {
+                    ingestionDiv.innerHTML = '⚠️ <strong>Warning:</strong> ' + (result.ingestionResult.message || 'Ingestion failed');
+                    ingestionDiv.className = 'ingestion-status error';
+                }
+            }
+
+            if (result.pdfContent && result.pdfSize > 0 && piNumbers.length > 0) {
+                document.getElementById('pdfSection').style.display = 'block';
+                currentPiNumbers = piNumbers;
+                currentPdfBase64 = result.pdfContent;
+                currentFileType = result.fileType || 'zip';
+            } else {
+                document.getElementById('pdfSection').style.display = 'none';
+            }
+            card.classList.add('visible');
+        } else {
+            setStatus('error', `❌ Workflow failed: ${result.error || 'Unknown error'}`);
+        }
+    }
+
+    function showPoColorSelection(colors, searchCriteria) {
+        availablePoColors = colors;
+        selectedPoColors = [];
+
+        const grid = document.getElementById('poColorGrid');
+        grid.innerHTML = '';
+
+        colors.forEach(color => {
+            const option = document.createElement('div');
+            option.className = 'po-color-option';
+            option.textContent = color;
+            option.dataset.color = color;
+            option.onclick = () => togglePoColor(color, option);
+            grid.appendChild(option);
+        });
+
+        document.getElementById('poColorCard').style.display = 'block';
+        setStatus('warning', `🎨 Please select one or more PO colors (${colors.length} available)`);
+    }
+
+    function togglePoColor(color, element) {
+        const index = selectedPoColors.indexOf(color);
+
+        if (index > -1) {
+            selectedPoColors.splice(index, 1);
+            element.classList.remove('selected');
+        } else {
+            selectedPoColors.push(color);
+            element.classList.add('selected');
+        }
+
+        updateColorSelectionStatus();
+    }
+
+    function selectAllColors() {
+        selectedPoColors = [...availablePoColors];
+
+        document.querySelectorAll('.po-color-option').forEach(el => {
+            el.classList.add('selected');
+        });
+
+        updateColorSelectionStatus();
+        setStatus('success', `✅ All ${availablePoColors.length} colors selected`);
+    }
+
+    function updateColorSelectionStatus() {
+        if (selectedPoColors.length === 0) {
+            setStatus('warning', '🎨 Please select at least one PO color');
+        } else if (selectedPoColors.length === availablePoColors.length) {
+            setStatus('success', `✅ All ${selectedPoColors.length} colors selected`);
+        } else {
+            setStatus('success', `✅ ${selectedPoColors.length} of ${availablePoColors.length} colors selected`);
+        }
+    }
+
+    async function proceedWithPoColor() {
+        if (selectedPoColors.length === 0) {
+            setStatus('error', '⚠️ Please select at least one PO color');
+            return;
+        }
+
+        document.getElementById('poColorCard').style.display = 'none';
+
+        const accessToken = localStorage.getItem('accessToken');
+        const email = localStorage.getItem('email');
+        const query = buildQueryFromForm();
+
+        const requestBody = {
+            email,
+            accessToken,
+            query,
+            poColors: selectedPoColors
+        };
+
+        const url = `${INTERNAL_API_BASE_URL}/workflow/stream`;
+
+        document.getElementById('liveOutput').classList.add('visible');
+        document.getElementById('liveOutputText').textContent = '';
+        document.getElementById('stepProgress').style.display = 'flex';
+        resetSteps();
+
+        isRequestInProgress = true;
+        showLoadingState();
+        setStatus('loading', `<span class="spinner"></span> Processing ${selectedPoColors.length} color(s)...`);
+
+        abortController = new AbortController();
+        startTime = Date.now();
+        startTimer();
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let fullStreamText = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                let currentEvent = '';
+                let currentData = [];
+
+                for (const line of lines) {
+                    if (line.startsWith('event:')) currentEvent = line.substring(6).trim();
+                    else if (line.startsWith('data:')) currentData.push(line.substring(5).trim());
+                    else if (line.trim() === '') {
+                        if (currentData.length > 0) {
+                            const data = currentData.join('\n');
+                            handleSseEvent(currentEvent, data, (text) => {
+                                fullStreamText += text;
+                                document.getElementById('liveOutputText').textContent = fullStreamText;
+                                updateStepsFromText(fullStreamText);
+                            });
+                            currentEvent = '';
+                            currentData = [];
+                        }
+                    }
+                }
+            }
+
+            stopTimer();
+
+        } catch (error) {
+            stopTimer();
+            if (error.name === 'AbortError') setStatus('error', '⏹️ Request cancelled');
+            else {
+                console.error('❌ Error:', error);
+                setStatus('error', `❌ Error: ${error.message}`);
+            }
+        } finally {
+            isRequestInProgress = false;
+            hideLoadingState();
+            abortController = null;
+        }
+    }
+
+    function cancelPoColorSelection() {
+        document.getElementById('poColorCard').style.display = 'none';
+        setStatus('error', '⏹️ Workflow cancelled');
+        selectedPoColors = [];
+    }
+
+    function downloadPdf(evt) {
+        if (!currentPdfBase64 || currentPiNumbers.length === 0) return;
+        const btn = evt ? evt.target : document.getElementById('pdfBtn');
+        const originalLabel = btn ? btn.textContent : null;
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparing File...'; }
+
+        try {
+            const byteCharacters = atob(currentPdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) byteNumbers[i] = byteCharacters.charCodeAt(i);
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: currentFileType === 'pdf' ? 'application/pdf' : 'application/zip' });
+
+            const extension = currentFileType === 'pdf' ? '.pdf' : '.zip';
+            const filename = `PI-${currentPiNumbers.join('-')}${extension}`;
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setStatus('success', `✅ ${filename} downloaded successfully!`);
+        } catch (err) {
+            console.error('❌ Download failed:', err);
+            setStatus('error', `❌ Could not download file: ${err.message}`);
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = originalLabel || '⬇️ Download File'; }
+        }
+    }
+
+    document.querySelectorAll('.form-group input, .form-group select').forEach(el => {
+        el.addEventListener('input', () => {
+            el.classList.remove('error');
+        });
+    });
+</script>
+
+</body>
+</html>
