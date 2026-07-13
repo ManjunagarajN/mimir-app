@@ -70,18 +70,24 @@
         .app-screen h2 { color: #333; margin-bottom: 5px; }
         .app-screen .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; }
 
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex; gap: 5px; margin-bottom: 25px; border-bottom: 2px solid #e0e0e0;
+        }
+        .tab-btn {
+            padding: 12px 24px; border: none; background: transparent; color: #666;
+            font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent;
+            margin-bottom: -2px; transition: all 0.3s;
+        }
+        .tab-btn:hover { color: #2a5298; }
+        .tab-btn.active { color: #2a5298; border-bottom-color: #2a5298; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .pi-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 25px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;
         }
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            position: relative;
-        }
+        .form-group { display: flex; flex-direction: column; gap: 8px; position: relative; }
         .form-group.full-width { grid-column: 1 / -1; }
         .form-group label {
             font-size: 14px; font-weight: 600; color: #333;
@@ -173,6 +179,7 @@
         .status.success { background: #e8f5e9; color: #2e7d32; }
         .status.error { background: #ffebee; color: #c62828; }
         .status.warning { background: #fff3cd; color: #856404; }
+        .status.info { background: #e3f2fd; color: #1565c0; }
 
         .spinner {
             display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(0, 0, 0, 0.1);
@@ -234,42 +241,26 @@
         .ingestion-status.success { background: #d4edda; color: #155724; }
         .ingestion-status.error { background: #fff3cd; color: #856404; }
 
-        /* PO Color Selection Styles */
         .po-color-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 12px;
-            margin: 20px 0;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px; margin: 20px 0;
         }
         .po-color-option {
-            background: white;
-            padding: 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            cursor: pointer;
-            text-align: center;
-            font-weight: 600;
-            transition: all 0.3s;
-            position: relative;
+            background: white; padding: 15px; border: 2px solid #e0e0e0; border-radius: 10px;
+            cursor: pointer; text-align: center; font-weight: 600; transition: all 0.3s; position: relative;
         }
         .po-color-option:hover {
-            border-color: #2a5298;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(42, 82, 152, 0.2);
+            border-color: #2a5298; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(42, 82, 152, 0.2);
         }
-        .po-color-option.selected {
-            border-color: #28a745;
-            background: #d4edda;
-            color: #155724;
-        }
+        .po-color-option.selected { border-color: #28a745; background: #d4edda; color: #155724; }
         .po-color-option.selected::after {
-            content: '✓';
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            font-size: 20px;
-            color: #28a745;
-            font-weight: bold;
+            content: '✓'; position: absolute; top: 5px; right: 10px; font-size: 20px;
+            color: #28a745; font-weight: bold;
+        }
+
+        .redownload-info {
+            background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 20px;
+            font-size: 13px; color: #1565c0; border-left: 4px solid #1976d2;
         }
 
         @media (max-width: 600px) {
@@ -316,105 +307,141 @@
 
         <!-- APP SCREEN -->
         <div id="appScreen" class="app-screen">
-            <h2>Create Purchase Intent</h2>
-            <p class="subtitle">Fill in the details below to create a new Purchase Intent.</p>
+            <h2>Purchase Intent Management</h2>
+            <p class="subtitle">Create new PIs or redownload existing ones.</p>
 
-            <form id="piForm" onsubmit="return false;">
-                <div class="pi-form">
-                    <div class="form-group">
-                        <label>Division <span class="required">*</span></label>
-                        <select id="division" required>
-                            <option value="">Select Division</option>
-                            <option value="Max-Women Wear">Women's Wear</option>
-                            <option value="Max-Innerwear">Innerwear</option>
-                        </select>
-                        <span class="error-message">Please select a division</span>
-                    </div>
+            <!-- Tab Navigation -->
+            <div class="tab-nav">
+                <button class="tab-btn active" onclick="switchTab('create', this)">🚀 Create PI</button>
+                <button class="tab-btn" onclick="switchTab('redownload', this)">📥 Redownload PDF</button>
+            </div>
 
-                    <div class="form-group">
-                        <label>Department <span class="required">*</span></label>
-                        <div class="multi-select" id="departmentSelect" data-field="department">
-                            <div class="multi-select-trigger" onclick="toggleMultiSelect('departmentSelect')">
-                                <span class="placeholder">Select departments...</span>
-                                <span class="arrow">▼</span>
-                            </div>
-                            <div class="multi-select-dropdown">
-                                <div class="multi-select-search">
-                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('departmentSelect', this.value)">
+            <!-- CREATE PI TAB -->
+            <div id="createTab" class="tab-content active">
+                <form id="piForm" onsubmit="return false;">
+                    <div class="pi-form">
+                        <div class="form-group">
+                            <label>Division <span class="required">*</span></label>
+                            <select id="division" required>
+                                <option value="">Select Division</option>
+                                <option value="Max-Women Wear">Women's Wear</option>
+                                <option value="Max-Innerwear">Innerwear</option>
+                            </select>
+                            <span class="error-message">Please select a division</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Department <span class="required">*</span></label>
+                            <div class="multi-select" id="departmentSelect" data-field="department">
+                                <div class="multi-select-trigger" onclick="toggleMultiSelect('departmentSelect')">
+                                    <span class="placeholder">Select departments...</span>
+                                    <span class="arrow">▼</span>
                                 </div>
-                                <div class="multi-select-options"></div>
-                                <div class="multi-select-actions">
-                                    <button type="button" onclick="selectAll('departmentSelect')">Select All</button>
-                                    <button type="button" onclick="clearAll('departmentSelect')">Clear</button>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Search..." onkeyup="filterOptions('departmentSelect', this.value)">
+                                    </div>
+                                    <div class="multi-select-options"></div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" onclick="selectAll('departmentSelect')">Select All</button>
+                                        <button type="button" onclick="clearAll('departmentSelect')">Clear</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="error-message">Please select at least one department</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Group <span class="required">*</span></label>
+                            <div class="multi-select" id="groupSelect" data-field="group">
+                                <div class="multi-select-trigger" onclick="toggleMultiSelect('groupSelect')">
+                                    <span class="placeholder">Select groups...</span>
+                                    <span class="arrow">▼</span>
+                                </div>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Search..." onkeyup="filterOptions('groupSelect', this.value)">
+                                    </div>
+                                    <div class="multi-select-options"></div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" onclick="selectAll('groupSelect')">Select All</button>
+                                        <button type="button" onclick="clearAll('groupSelect')">Clear</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="error-message">Please select at least one group</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Style <span class="required">*</span></label>
+                            <input type="text" id="style" placeholder="e.g., ELA4D" required>
+                            <span class="error-message">Please enter a style</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Size Range</label>
+                            <div class="multi-select" id="sizeRangeSelect" data-field="sizeRange">
+                                <div class="multi-select-trigger" onclick="toggleMultiSelect('sizeRangeSelect')">
+                                    <span class="placeholder">Select size ranges...</span>
+                                    <span class="arrow">▼</span>
+                                </div>
+                                <div class="multi-select-dropdown">
+                                    <div class="multi-select-search">
+                                        <input type="text" placeholder="Search..." onkeyup="filterOptions('sizeRangeSelect', this.value)">
+                                    </div>
+                                    <div class="multi-select-options"></div>
+                                    <div class="multi-select-actions">
+                                        <button type="button" onclick="selectAll('sizeRangeSelect')">Select All</button>
+                                        <button type="button" onclick="clearAll('sizeRangeSelect')">Clear</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <span class="error-message">Please select at least one department</span>
-                    </div>
 
-                    <div class="form-group">
-                        <label>Group <span class="required">*</span></label>
-                        <div class="multi-select" id="groupSelect" data-field="group">
-                            <div class="multi-select-trigger" onclick="toggleMultiSelect('groupSelect')">
-                                <span class="placeholder">Select groups...</span>
-                                <span class="arrow">▼</span>
-                            </div>
-                            <div class="multi-select-dropdown">
-                                <div class="multi-select-search">
-                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('groupSelect', this.value)">
-                                </div>
-                                <div class="multi-select-options"></div>
-                                <div class="multi-select-actions">
-                                    <button type="button" onclick="selectAll('groupSelect')">Select All</button>
-                                    <button type="button" onclick="clearAll('groupSelect')">Clear</button>
-                                </div>
-                            </div>
-                        </div>
-                        <span class="error-message">Please select at least one group</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Style <span class="required">*</span></label>
-                        <input type="text" id="style" placeholder="e.g., ELA4D" required>
-                        <span class="error-message">Please enter a style</span>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Size Range</label>
-                        <div class="multi-select" id="sizeRangeSelect" data-field="sizeRange">
-                            <div class="multi-select-trigger" onclick="toggleMultiSelect('sizeRangeSelect')">
-                                <span class="placeholder">Select size ranges...</span>
-                                <span class="arrow">▼</span>
-                            </div>
-                            <div class="multi-select-dropdown">
-                                <div class="multi-select-search">
-                                    <input type="text" placeholder="Search..." onkeyup="filterOptions('sizeRangeSelect', this.value)">
-                                </div>
-                                <div class="multi-select-options"></div>
-                                <div class="multi-select-actions">
-                                    <button type="button" onclick="selectAll('sizeRangeSelect')">Select All</button>
-                                    <button type="button" onclick="clearAll('sizeRangeSelect')">Clear</button>
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label>Hit (Season)</label>
+                            <input type="text" id="hit" placeholder="e.g., S-8 (optional)">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Hit (Season)</label>
-                        <input type="text" id="hit" placeholder="e.g., S-8 (optional)">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="createBtn" onclick="startWorkflow()">
+                            🚀 Create PI
+                        </button>
+                        <button type="button" class="btn btn-danger" id="stopBtn" onclick="stopRequest()" style="display:none;">
+                            ⏹ Stop
+                        </button>
                     </div>
+                </form>
+            </div>
+
+            <!-- REDOWNLOAD TAB -->
+            <div id="redownloadTab" class="tab-content">
+                <div class="redownload-info">
+                    💡 Enter the PI number(s) of previously created Purchase Intents to download their PDF reports again.
                 </div>
 
-                <div class="btn-group">
-                    <button type="button" class="btn btn-primary" id="createBtn" onclick="startWorkflow()">
-                        🚀 Create PI
-                    </button>
-                    <button type="button" class="btn btn-danger" id="stopBtn" onclick="stopRequest()" style="display:none;">
-                        ⏹ Stop
-                    </button>
-                </div>
-            </form>
+                <form id="redownloadForm" onsubmit="return false;">
+                    <div class="pi-form">
+                        <div class="form-group full-width">
+                            <label>PI Numbers <span class="required">*</span></label>
+                            <input type="text" id="redownloadPiNumbers" placeholder="e.g., 210, 211, 212 (comma-separated)" required>
+                            <span class="error-message">Please enter at least one PI number</span>
+                        </div>
+                    </div>
 
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="redownloadBtn" onclick="startRedownload()">
+                            📥 Download PDF
+                        </button>
+                        <button type="button" class="btn btn-danger" id="redownloadStopBtn" onclick="stopRequest()" style="display:none;">
+                            ⏹ Stop
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Progress & Status (shared) -->
             <div id="stepProgress" class="step-progress" style="display:none;">
                 <span class="step" id="stepPlan">📋 Plan</span>
                 <span class="separator">→</span>
@@ -477,6 +504,7 @@
 <script>
     const API_BASE_URL = 'http://localhost:8081/api/v1/vortx';
     const INTERNAL_API_BASE_URL = 'http://localhost:8080/api/v1/mimir';
+    const WORKFLOW_URL = `${INTERNAL_API_BASE_URL}/workflow/execute`;
 
     const MULTI_SELECT_OPTIONS = {
         departmentSelect: [
@@ -507,9 +535,43 @@
     let currentPdfBase64 = null;
     let currentFileType = 'zip';
 
-    // PO Color state
     let selectedPoColors = [];
     let availablePoColors = [];
+
+    // ==================================================================
+    // Tab Navigation
+    // ==================================================================
+
+    function switchTab(tabName, btnElement) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById(`${tabName}Tab`).classList.add('active');
+
+        resetUI();
+
+        if (tabName === 'create') {
+            setStatus('info', '💡 Fill in the form above and click "Create PI".');
+        } else {
+            setStatus('info', '💡 Enter PI number(s) and click "Download PDF".');
+        }
+    }
+
+    function resetUI() {
+        document.getElementById('poColorCard').style.display = 'none';
+        document.getElementById('resultCard').classList.remove('visible');
+        document.getElementById('liveOutput').classList.remove('visible');
+        document.getElementById('liveOutputText').textContent = '';
+        document.getElementById('stepProgress').style.display = 'none';
+        selectedPoColors = [];
+        currentPiNumbers = [];
+        currentPdfBase64 = null;
+    }
+
+    // ==================================================================
+    // Initialization
+    // ==================================================================
 
     window.addEventListener('load', () => {
         const storedToken = localStorage.getItem('accessToken');
@@ -524,6 +586,10 @@
         });
     });
 
+    // ==================================================================
+    // Multi-Select Functions
+    // ==================================================================
+
     function renderMultiSelectOptions(selectId, filter = '') {
         const container = document.querySelector(`#${selectId} .multi-select-options`);
         const options = MULTI_SELECT_OPTIONS[selectId];
@@ -532,9 +598,7 @@
         container.innerHTML = '';
 
         options.forEach(option => {
-            if (filter && !option.toLowerCase().includes(filter.toLowerCase())) {
-                return;
-            }
+            if (filter && !option.toLowerCase().includes(filter.toLowerCase())) return;
 
             const isSelected = selected.includes(option);
             const optionEl = document.createElement('div');
@@ -562,11 +626,8 @@
         const selected = multiSelectState[selectId];
         const index = selected.indexOf(option);
 
-        if (index > -1) {
-            selected.splice(index, 1);
-        } else {
-            selected.push(option);
-        }
+        if (index > -1) selected.splice(index, 1);
+        else selected.push(option);
 
         renderMultiSelectOptions(selectId, document.querySelector(`#${selectId} .multi-select-search input`)?.value || '');
     }
@@ -616,9 +677,7 @@
         }
     }
 
-    function filterOptions(selectId, filter) {
-        renderMultiSelectOptions(selectId, filter);
-    }
+    function filterOptions(selectId, filter) { renderMultiSelectOptions(selectId, filter); }
 
     function selectAll(selectId) {
         multiSelectState[selectId] = [...MULTI_SELECT_OPTIONS[selectId]];
@@ -633,9 +692,7 @@
     document.addEventListener('click', (event) => {
         const userMenu = document.getElementById('userMenu');
         const dropdown = document.getElementById('dropdownMenu');
-        if (userMenu && !userMenu.contains(event.target)) {
-            dropdown.classList.remove('active');
-        }
+        if (userMenu && !userMenu.contains(event.target)) dropdown.classList.remove('active');
 
         if (!event.target.closest('.multi-select')) {
             document.querySelectorAll('.multi-select-trigger.open').forEach(trigger => {
@@ -645,9 +702,11 @@
         }
     });
 
-    function toggleDropdown() {
-        document.getElementById('dropdownMenu').classList.toggle('active');
-    }
+    function toggleDropdown() { document.getElementById('dropdownMenu').classList.toggle('active'); }
+
+    // ==================================================================
+    // Authentication
+    // ==================================================================
 
     async function login() {
         const email = document.getElementById('loginEmail').value.trim();
@@ -674,7 +733,6 @@
             });
 
             if (!response.ok) throw new Error(`Login failed: ${response.status}`);
-
             const result = await response.json();
 
             if (result.httpStatus === "OK" && result.data && result.data.accessToken) {
@@ -702,16 +760,20 @@
         document.getElementById('appScreen').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('dropdownMenu').classList.remove('active');
+        resetUI();
     }
 
     function showAppScreen(email) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('appScreen').style.display = 'block';
         document.getElementById('userMenu').style.display = 'block';
-
         document.getElementById('userEmailDisplay').textContent = email;
         document.getElementById('emailTooltip').textContent = `Email: ${email}`;
     }
+
+    // ==================================================================
+    // Form Validation & Query Building
+    // ==================================================================
 
     function validateForm() {
         const division = document.getElementById('division').value.trim();
@@ -720,27 +782,12 @@
         const style = document.getElementById('style').value.trim();
 
         let isValid = true;
+        document.querySelectorAll('.form-group input, .form-group select, .multi-select-trigger').forEach(el => el.classList.remove('error'));
 
-        document.querySelectorAll('.form-group input, .form-group select, .multi-select-trigger').forEach(el => {
-            el.classList.remove('error');
-        });
-
-        if (!division) {
-            document.getElementById('division').classList.add('error');
-            isValid = false;
-        }
-        if (departments.length === 0) {
-            document.querySelector('#departmentSelect .multi-select-trigger').classList.add('error');
-            isValid = false;
-        }
-        if (groups.length === 0) {
-            document.querySelector('#groupSelect .multi-select-trigger').classList.add('error');
-            isValid = false;
-        }
-        if (!style) {
-            document.getElementById('style').classList.add('error');
-            isValid = false;
-        }
+        if (!division) { document.getElementById('division').classList.add('error'); isValid = false; }
+        if (departments.length === 0) { document.querySelector('#departmentSelect .multi-select-trigger').classList.add('error'); isValid = false; }
+        if (groups.length === 0) { document.querySelector('#groupSelect .multi-select-trigger').classList.add('error'); isValid = false; }
+        if (!style) { document.getElementById('style').classList.add('error'); isValid = false; }
 
         return isValid;
     }
@@ -754,27 +801,26 @@
         const hit = document.getElementById('hit').value.trim().toUpperCase();
 
         let query = `Create a PI for division ${division}`;
-
-        if (departments.length > 0) {
-            query += ` department ${departments.join(', ')}`;
-        }
-
-        if (groups.length > 0) {
-            query += ` group ${groups.join(', ')}`;
-        }
-
+        if (departments.length > 0) query += ` department ${departments.join(', ')}`;
+        if (groups.length > 0) query += ` group ${groups.join(', ')}`;
         query += ` style ${style}`;
-
-        if (sizeRanges.length > 0) {
-            query += ` size ${sizeRanges.join(', ')}`;
-        }
-
-        if (hit) {
-            query += ` hit ${hit}`;
-        }
+        if (sizeRanges.length > 0) query += ` size ${sizeRanges.join(', ')}`;
+        if (hit) query += ` hit ${hit}`;
 
         return query;
     }
+
+    function parsePiNumbers(input) {
+        return input.split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .map(s => parseInt(s))
+            .filter(n => !isNaN(n));
+    }
+
+    // ==================================================================
+    // Create PI Workflow
+    // ==================================================================
 
     async function startWorkflow() {
         if (!validateForm()) {
@@ -795,18 +841,60 @@
         resetSteps();
 
         isRequestInProgress = true;
-        showLoadingState();
+        showLoadingState('create');
         setStatus('loading', `<span class="spinner"></span> Starting workflow...`);
 
         abortController = new AbortController();
         startTime = Date.now();
         startTimer();
 
-        const requestBody = { email, accessToken, query };
-        const url = `${INTERNAL_API_BASE_URL}/workflow/stream`;
+        executeWorkflow({ email, accessToken, query });
+    }
 
+    // ==================================================================
+    // Redownload PDF Workflow
+    // ==================================================================
+
+    async function startRedownload() {
+        const input = document.getElementById('redownloadPiNumbers').value.trim();
+
+        if (!input) {
+            setStatus('error', '⚠️ Please enter at least one PI number');
+            return;
+        }
+
+        const piNumbers = parsePiNumbers(input);
+
+        if (piNumbers.length === 0) {
+            setStatus('error', '⚠️ Invalid PI numbers. Use comma-separated numbers (e.g., 210, 211)');
+            return;
+        }
+
+        const accessToken = localStorage.getItem('accessToken');
+        const email = localStorage.getItem('email');
+
+        resetUI();
+        document.getElementById('liveOutput').classList.add('visible');
+        document.getElementById('liveOutputText').textContent = '';
+
+        isRequestInProgress = true;
+        showLoadingState('redownload');
+        setStatus('loading', `<span class="spinner"></span> Downloading PDF for PI(s): ${piNumbers.join(', ')}...`);
+
+        abortController = new AbortController();
+        startTime = Date.now();
+        startTimer();
+
+        executeWorkflow({ email, accessToken, piNumbers });
+    }
+
+    // ==================================================================
+    // Unified Workflow Execution
+    // ==================================================================
+
+    async function executeWorkflow(requestBody) {
         try {
-            const response = await fetch(url, {
+            const response = await fetch(WORKFLOW_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
@@ -865,6 +953,10 @@
         }
     }
 
+    // ==================================================================
+    // SSE Event Handling
+    // ==================================================================
+
     function handleSseEvent(eventType, data, onMessage) {
         if (!eventType) eventType = 'message';
         if (eventType === 'message') onMessage(data);
@@ -878,16 +970,29 @@
         }
     }
 
-    function showLoadingState() {
-        document.getElementById('createBtn').disabled = true;
-        document.getElementById('createBtn').textContent = 'Processing...';
-        document.getElementById('stopBtn').style.display = 'inline-block';
+    // ==================================================================
+    // UI State Management
+    // ==================================================================
+
+    function showLoadingState(mode = 'create') {
+        if (mode === 'redownload') {
+            document.getElementById('redownloadBtn').disabled = true;
+            document.getElementById('redownloadBtn').textContent = 'Processing...';
+            document.getElementById('redownloadStopBtn').style.display = 'inline-block';
+        } else {
+            document.getElementById('createBtn').disabled = true;
+            document.getElementById('createBtn').textContent = 'Processing...';
+            document.getElementById('stopBtn').style.display = 'inline-block';
+        }
     }
 
     function hideLoadingState() {
         document.getElementById('createBtn').disabled = false;
         document.getElementById('createBtn').textContent = '🚀 Create PI';
         document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('redownloadBtn').disabled = false;
+        document.getElementById('redownloadBtn').textContent = '📥 Download PDF';
+        document.getElementById('redownloadStopBtn').style.display = 'none';
     }
 
     function resetSteps() {
@@ -921,10 +1026,10 @@
         if (text.includes('Built') && text.includes('requests')) setStep('stepBuild', 'completed');
 
         if (text.includes('Creating')) setStep('stepCreate', 'active');
-        if (text.includes('PI created')) setStep('stepCreate', 'completed');
+        if (text.includes('PI created') || text.includes('Created')) setStep('stepCreate', 'completed');
 
         if (text.includes('Downloading')) setStep('stepPdf', 'active');
-        if (text.includes('Ingestion successful')) setStep('stepPdf', 'completed');
+        if (text.includes('Ingestion successful') || text.includes('Download complete')) setStep('stepPdf', 'completed');
     }
 
     function startTimer() {
@@ -951,6 +1056,10 @@
         setStatus('error', '⏹️ Request cancelled');
     }
 
+    // ==================================================================
+    // Result Display & Auto-Logout on 401
+    // ==================================================================
+
     function displayResult(result) {
         if (result.requiresPoColorSelection) {
             showPoColorSelection(result.availablePoColors, result.searchCriteria);
@@ -960,8 +1069,9 @@
         const card = document.getElementById('resultCard');
         if (result.success) {
             const piNumbers = result.createdPiNumbers || [];
+            currentPiNumbers = piNumbers;
             document.getElementById('piNumber').textContent = piNumbers.length > 0 ? piNumbers.join(', ') : 'N/A';
-            document.getElementById('agentAnswer').textContent = result.answer || 'No summary provided.';
+            document.getElementById('agentAnswer').textContent = result.answer || result.message || 'No summary provided.';
 
             if (result.ingestionResult) {
                 document.getElementById('ingestionSection').style.display = 'block';
@@ -977,17 +1087,39 @@
 
             if (result.pdfContent && result.pdfSize > 0 && piNumbers.length > 0) {
                 document.getElementById('pdfSection').style.display = 'block';
-                currentPiNumbers = piNumbers;
                 currentPdfBase64 = result.pdfContent;
                 currentFileType = result.fileType || 'zip';
             } else {
                 document.getElementById('pdfSection').style.display = 'none';
             }
             card.classList.add('visible');
+            setStatus('success', `✅ Workflow completed in ${getElapsedTime()}s`);
+
         } else {
-            setStatus('error', `❌ Workflow failed: ${result.error || 'Unknown error'}`);
+            const errorMsg = result.error || 'Unknown error';
+
+            // 🆕 Check for 401 Unauthorized (Expired Token)
+            if (errorMsg.includes('401') || errorMsg.includes('UNAUTHORIZED') || errorMsg.includes('expired') || errorMsg.includes('Token has expired')) {
+                setStatus('error', '🔐 Session expired. Redirecting to login...');
+
+                // Clear stored credentials
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('email');
+
+                // Force logout after a short delay so the user sees the message
+                setTimeout(() => {
+                    logout();
+                }, 2000);
+                return;
+            }
+
+            setStatus('error', `❌ Workflow failed: ${errorMsg}`);
         }
     }
+
+    // ==================================================================
+    // PO Color Selection
+    // ==================================================================
 
     function showPoColorSelection(colors, searchCriteria) {
         availablePoColors = colors;
@@ -1063,79 +1195,18 @@
             poColors: selectedPoColors
         };
 
-        const url = `${INTERNAL_API_BASE_URL}/workflow/stream`;
-
-        document.getElementById('liveOutput').classList.add('visible');
         document.getElementById('liveOutputText').textContent = '';
-        document.getElementById('stepProgress').style.display = 'flex';
         resetSteps();
 
         isRequestInProgress = true;
-        showLoadingState();
+        showLoadingState('create');
         setStatus('loading', `<span class="spinner"></span> Processing ${selectedPoColors.length} color(s)...`);
 
         abortController = new AbortController();
         startTime = Date.now();
         startTimer();
 
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody),
-                signal: abortController.signal
-            });
-
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-            let fullStreamText = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                let currentEvent = '';
-                let currentData = [];
-
-                for (const line of lines) {
-                    if (line.startsWith('event:')) currentEvent = line.substring(6).trim();
-                    else if (line.startsWith('data:')) currentData.push(line.substring(5).trim());
-                    else if (line.trim() === '') {
-                        if (currentData.length > 0) {
-                            const data = currentData.join('\n');
-                            handleSseEvent(currentEvent, data, (text) => {
-                                fullStreamText += text;
-                                document.getElementById('liveOutputText').textContent = fullStreamText;
-                                updateStepsFromText(fullStreamText);
-                            });
-                            currentEvent = '';
-                            currentData = [];
-                        }
-                    }
-                }
-            }
-
-            stopTimer();
-
-        } catch (error) {
-            stopTimer();
-            if (error.name === 'AbortError') setStatus('error', '⏹️ Request cancelled');
-            else {
-                console.error('❌ Error:', error);
-                setStatus('error', `❌ Error: ${error.message}`);
-            }
-        } finally {
-            isRequestInProgress = false;
-            hideLoadingState();
-            abortController = null;
-        }
+        executeWorkflow(requestBody);
     }
 
     function cancelPoColorSelection() {
@@ -1143,6 +1214,10 @@
         setStatus('error', '⏹️ Workflow cancelled');
         selectedPoColors = [];
     }
+
+    // ==================================================================
+    // PDF Download
+    // ==================================================================
 
     function downloadPdf(evt) {
         if (!currentPdfBase64 || currentPiNumbers.length === 0) return;
@@ -1174,6 +1249,10 @@
             if (btn) { btn.disabled = false; btn.textContent = originalLabel || '⬇️ Download File'; }
         }
     }
+
+    // ==================================================================
+    // Error Clearing
+    // ==================================================================
 
     document.querySelectorAll('.form-group input, .form-group select').forEach(el => {
         el.addEventListener('input', () => {

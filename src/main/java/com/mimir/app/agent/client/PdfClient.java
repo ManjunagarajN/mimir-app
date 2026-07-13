@@ -1,4 +1,4 @@
-package com.mimir.app.agent.utils;
+package com.mimir.app.agent.client;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -7,6 +7,7 @@ import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.mimir.app.agent.utils.HttpLogUtil;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

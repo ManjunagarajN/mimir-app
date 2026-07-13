@@ -1,4 +1,4 @@
-package com.mimir.app.agent.utils;
+package com.mimir.app.agent.client;
 
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
+import com.mimir.app.agent.utils.HttpLogUtil;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;

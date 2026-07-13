@@ -1,4 +1,4 @@
-package com.mimir.app.agent.utils;
+package com.mimir.app.agent.config;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
