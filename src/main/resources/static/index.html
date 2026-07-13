@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mimir API Integration</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color: #333; background-color: #f4f6f8; }
+        section { border: 1px solid #e0e0e0; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; background-color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #f0f0f0; padding-bottom: 0.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.9rem; color: #555; }
+        input[type="text"], input[type="file"], textarea { width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95rem; transition: border 0.2s; }
+        input[type="text"]:focus, textarea:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+        input[readonly] { background-color: #e9ecef; color: #495057; cursor: default; }
+        button { padding: 0.6rem 1.2rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.95rem; margin-right: 0.5rem; transition: background 0.2s; }
+        button:hover:not(:disabled) { background-color: #0056b3; }
+        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
+        button.stop { background-color: #dc3545; }
+        button.stop:hover:not(:disabled) { background-color: #a71d2a; }
+        #chat-output { background-color: #1e1e1e; color: #e0e0e0; border: 1px solid #333; border-radius: 4px; padding: 1rem; min-height: 150px; white-space: pre-wrap; margin-top: 1rem; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; font-size: 0.95rem; }
+        .status { margin-top: 1rem; padding: 0.75rem; border-radius: 4px; font-size: 0.9rem; display: none; }
+        .status.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+
+<h1>Mimir API Client</h1>
+
+<!-- Data Ingestion Section -->
+<section id="ingestion-section">
+    <h2>📥 Data Ingestion</h2>
+    <form id="ingest-form">
+        <div class="form-group">
+            <label for="files">Files (Optional):</label>
+            <input type="file" id="files" name="files" multiple>
+        </div>
+        <div class="form-group">
+            <label for="inputSourceData">Input Source Data (Optional):</label>
+            <textarea id="inputSourceData" name="inputSourceData" rows="4" placeholder="Enter JSON, XML, or plain text data..."></textarea>
+        </div>
+        <button type="submit">Ingest Data</button>
+    </form>
+    <div id="ingest-status" class="status"></div>
+</section>
+
+<!-- Chat Stream Section -->
+<section id="chat-section">
+    <h2>💬 Chat Stream</h2>
+    <form id="chat-form">
+        <div class="form-group">
+            <label for="chatId">Chat ID (Auto-generated UUID):</label>
+            <input type="text" id="chatId" name="chatId" readonly>
+        </div>
+        <div class="form-group">
+            <label for="model">Model (Required):</label>
+            <input type="text" id="model" name="model" value="mimir-default" required placeholder="e.g., mimir-default">
+        </div>
+        <div class="form-group">
+            <label for="message">Message Content:</label>
+            <textarea id="message" name="message" rows="4" required placeholder="Enter your prompt or message..."></textarea>
+        </div>
+        <button type="submit" id="start-stream-btn">Start Stream</button>
+        <button type="button" id="stop-stream-btn" class="stop" disabled>Stop Stream</button>
+        <button type="button" id="new-chat-btn" style="background-color: #6c757d;">New Chat</button>
+    </form>
+    <div id="chat-output"></div>
+    <div id="chat-status" class="status"></div>
+</section>
+
+<script>
+    const BASE_URL = 'http://localhost:8080/api/v1/mimir';
+    let abortController = null;
+    let currentChatId = null;
+
+    function generateUUID() {
+        return crypto.randomUUID();
+    }
+
+    function initNewChat() {
+        currentChatId = generateUUID();
+        document.getElementById('chatId').value = currentChatId;
+        document.getElementById('message').value = '';
+        document.getElementById('chat-output').textContent = '';
+        document.getElementById('chat-status').style.display = 'none';
+        document.getElementById('start-stream-btn').disabled = false;
+        document.getElementById('stop-stream-btn').disabled = true;
+        if (abortController) {
+            abortController.abort();
+            abortController = null;
+        }
+    }
+
+    initNewChat();
+    document.getElementById('new-chat-btn').addEventListener('click', initNewChat);
+
+    // ==========================================
+    // 1. Data Ingestion Logic
+    // ==========================================
+    document.getElementById('ingest-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const statusDiv = document.getElementById('ingest-status');
+        statusDiv.style.display = 'block';
+        statusDiv.className = 'status info';
+        statusDiv.textContent = 'Ingesting data...';
+
+        const formData = new FormData();
+        const filesInput = document.getElementById('files');
+        const inputData = document.getElementById('inputSourceData').value;
+
+        if (filesInput.files.length > 0) {
+            for (let i = 0; i < filesInput.files.length; i++) {
+                formData.append('files', filesInput.files[i]);
+            }
+        }
+        if (inputData.trim() !== '') {
+            formData.append('inputSourceData', inputData);
+        }
+
+        try {
+            const response = await fetch(`${BASE_URL}/ingest`, { method: 'POST', body: formData });
+            if (response.ok) {
+                const result = await response.text();
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `✅ Success: ${result}`;
+            } else {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error: ${response.status} ${response.statusText}`;
+            }
+        } catch (error) {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = `❌ Network Error: ${error.message}`;
+        }
+    });
+
+    // ==========================================
+    // 2. Chat Stream Logic (Robust SSE Parser)
+    // ==========================================
+    document.getElementById('chat-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const messageText = document.getElementById('message').value;
+        const model = document.getElementById('model').value;
+        const chatOutput = document.getElementById('chat-output');
+        const statusDiv = document.getElementById('chat-status');
+        const startBtn = document.getElementById('start-stream-btn');
+        const stopBtn = document.getElementById('stop-stream-btn');
+
+        chatOutput.textContent = '';
+        statusDiv.style.display = 'none';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        const payload = {
+            stream: true,
+            incremental_output: true,
+            chat_id: currentChatId,
+            model: model,
+            chat_mode: "normal",
+            messages: [{
+                fid: generateUUID(),
+                role: "user",
+                content: messageText
+            }]
+        };
+
+        abortController = new AbortController();
+
+        try {
+            const response = await fetch(`${BASE_URL}/stream`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: abortController.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                // Add new chunk to buffer
+                buffer += decoder.decode(value, { stream: true });
+
+                // Split by double newline (standard SSE message boundary)
+                const parts = buffer.split(/\r?\n\r?\n/);
+
+                // Keep the last part in buffer (it might be an incomplete message)
+                buffer = parts.pop() || "";
+
+                for (const part of parts) {
+                    if (!part.trim()) continue;
+
+                    let dataLines = [];
+
+                    const lines = part.split(/\r?\n/);
+                    for (const line of lines) {
+                        if (line.startsWith("data:")) {
+                            // CRITICAL FIX: Do NOT trim! We need to preserve leading spaces in tokens like " I" or " the"
+                            dataLines.push(line.substring(5));
+                        }
+                    }
+
+                    // Join with newline as per SSE spec, though for tokens it's usually just one line
+                    let dataValue = dataLines.join("\n");
+
+                    // Ignore termination signals
+                    if (dataValue && dataValue !== "[DONE]" && dataValue !== "completed") {
+                        // Filter out JSON metadata (like confidence scores) from the chat UI
+                        if (dataValue.startsWith("{") && dataValue.includes("level")) {
+                            console.log("Stream Metadata:", dataValue);
+                        } else {
+                            chatOutput.textContent += dataValue;
+                            chatOutput.scrollTop = chatOutput.scrollHeight;
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining data in the buffer when the stream closes
+            if (buffer.trim()) {
+                const lines = buffer.split(/\r?\n/);
+                let dataLines = [];
+                for (const line of lines) {
+                    if (line.startsWith("data:")) {
+                        dataLines.push(line.substring(5));
+                    }
+                }
+                let dataValue = dataLines.join("\n");
+                if (dataValue && dataValue !== "[DONE]" && dataValue !== "completed") {
+                    if (!(dataValue.startsWith("{") && dataValue.includes("level"))) {
+                        chatOutput.textContent += dataValue;
+                    }
+                }
+            }
+
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status success';
+            statusDiv.textContent = '✅ Stream completed successfully.';
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status info';
+                statusDiv.textContent = '⏹️ Stream stopped by user.';
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        } finally {
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            abortController = null;
+        }
+    });
+
+    document.getElementById('stop-stream-btn').addEventListener('click', async () => {
+        if (abortController) {
+            abortController.abort();
+        }
+        try {
+            await fetch(`${BASE_URL}/stop/${currentChatId}`, { method: 'POST' });
+        } catch (error) {
+            console.error('Failed to notify server to stop:', error);
+        }
+    });
+</script>
+</body>
+</html>
